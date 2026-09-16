@@ -1,0 +1,46 @@
+name: Deploy to AWS Lambda
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions: {}
+
+jobs:
+  deploy:
+    name: Update functions
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.26.8'
+
+    - name: Build
+      run: |
+        CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bootstrap
+        mkdir deploy
+        cp bootstrap deploy/
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: ${{ secrets.AWS_LAMBDA_REGION }}
+        role-to-assume: ${{ secrets.AWS_LAMBDA_DEPLOY_ROLE_ARN }}
+        role-session-name: lambda-deploy
+
+    - name: Deploy Lambda Function
+      uses: aws-actions/aws-lambda-deploy@v1
+      with:
+        function-name: svg-proxy
+        code-artifacts-dir: deploy
+        handler: main.handler
+        runtime: provided.al2023 # Amazon Linux 2023
+        architectures: arm64
