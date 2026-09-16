@@ -18,17 +18,28 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
 
-    - name: Setup Go
-      uses: actions/setup-go@v5
+    - name: Install Rust and Cargo Lambda
+      uses: moonrepo/setup-rust@v1
       with:
-        go-version: '1.26.8'
+        bins: cargo-lambda
+
+    - name: Setup Zig
+      uses: mlugg/setup-zig@v1
+      with:
+        version: 0.14.0
 
     - name: Build
       run: |
-        CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bootstrap
-        mkdir deploy
-        cp bootstrap deploy/
-    
+        cargo lambda build \
+          --release \
+          --arm64
+
+        mkdir -p deploy
+
+        cp \
+          target/lambda/svg-proxy-lambda/bootstrap \
+          deploy/bootstrap
+
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
